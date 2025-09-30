@@ -9,7 +9,7 @@ void tearDown(void) {
     // Tear down code here
 }
 
-// Forward declare the test functions that are defined in test_stunt_dict.c
+// Forward declare the test functions that are defined in test_simplet_dictionary.c
 void test_stunt_dict_creates_and_destroys_correctly(void);
 void test_stunt_dict_adds_and_retrieves_values(void);
 void test_stunt_dict_handles_non_existent_keys(void);
