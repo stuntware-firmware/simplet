@@ -18,19 +18,6 @@ include_directories(
         simplet-tests
 )
 
-# Build Unity testing framework from source
-add_library(unity STATIC
-        simplet-tests/unity/unity.c
-)
-
-target_include_directories(unity PUBLIC
-        simplet-tests/unity
-)
-
-# Set Unity include directory
-set(UNITY_INCLUDE_DIR simplet-tests/unity)
-include_directories(${UNITY_INCLUDE_DIR})
-
 # Build the simplet library
 add_library(simplet STATIC
         src/simplet.c
@@ -48,10 +35,9 @@ add_executable(test_hello_world_unit
         simplet-tests/test_hello_world_main.c
 )
 
-target_link_libraries(test_hello_world_unit simplet unity)
+target_link_libraries(test_hello_world_unit simplet)
 
 target_include_directories(test_hello_world_unit PRIVATE
-    ${UNITY_INCLUDE_DIR}
         src/include
         simplet-tests
 )
@@ -62,10 +48,9 @@ add_executable(test_simplet_dictionary_unit
         simplet-tests/test_simplet_dictionary_main.c
 )
 
-target_link_libraries(test_simplet_dictionary_unit simplet unity)
+target_link_libraries(test_simplet_dictionary_unit simplet)
 
 target_include_directories(test_simplet_dictionary_unit PRIVATE
-    ${UNITY_INCLUDE_DIR}
         src/include
         simplet-tests
 )

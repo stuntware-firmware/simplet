@@ -11,6 +11,9 @@
 #define DELIMITER_END "}}"
 #define DELIMITER_LENGTH 2
 
+// Maximum template size (including null terminator)
+#define MAX_TEMPLATE_SIZE 8192 + TERMINATOR
+
 // Helper macro for allocating empty strings
 #define EMPTY_STRING() ({ char *s = malloc(1); if (s) s[0] = '\0'; s; })
 
@@ -47,12 +50,13 @@ static inline size_t skip_trailing_whitespace(const char *str, size_t start, siz
  */
 char* simplet_render_html(const char *html_template, simplet_dictionary_t *dictionary) {
 
-    if (!html_template || strlen(html_template) == 0) {
+    if (!html_template) {
         return EMPTY_STRING();
     }
 
-    const size_t html_length = strlen(html_template);
-    if (html_length == 0) {
+    const size_t html_length = safe_strlen(html_template, MAX_TEMPLATE_SIZE);
+
+    if (html_length == SIZE_MAX || html_length == 0) {
         return EMPTY_STRING();
     }
 
@@ -99,7 +103,7 @@ char* simplet_render_html(const char *html_template, simplet_dictionary_t *dicti
                     break;
                 }
                 search_pos++;
-            }
+             }
 
             if (key_end > 0) {
                 // Trim trailing whitespace from key
@@ -131,10 +135,12 @@ char* simplet_render_html(const char *html_template, simplet_dictionary_t *dicti
                     const char *value = simplet_dictionary_get(dictionary, key_buffer);
 
                     if (value && value[0] != '\0') {
-                        // Substitute with value (only if non-empty)
-                        const size_t value_length = strlen(value);
-                        memcpy(output_buffer + output_length, value, value_length);
-                        output_length += value_length;
+                        // Substitute with value (only if non-empty) - validate length
+                        const size_t value_length = safe_strlen(value, MAX_VALUE_SIZE);
+                        if (value_length != SIZE_MAX && value_length > 0) {
+                            memcpy(output_buffer + output_length, value, value_length);
+                            output_length += value_length;
+                        }
                     }
                     // If value is null or empty, render nothing (no key, no value)
 
