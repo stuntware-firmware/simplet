@@ -1,0 +1,1 @@
+# Simplet HTML Template Component

@@ -1,0 +1,11 @@
+site_name: Simplet
+docs_dir: mkdocs
+site_dir: ../dist/simplet-docs
+
+theme:
+  name: bootstrap386
+#  name: material
+#  palette:
+#    scheme: slate
+#    primary: black
+#    accent: lime

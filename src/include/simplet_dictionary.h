@@ -1,6 +1,11 @@
 #ifndef SIMPLET_DICTIONARY_H
 #define SIMPLET_DICTIONARY_H
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
+
 // C version feature detection
 #if __STDC_VERSION__ >= 201112L
     #define HAS_C11 1
@@ -20,10 +25,6 @@
     _Static_assert(sizeof(void*) >= 4, "Pointer size must be at least 32 bits");
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 
 // Error codes enumeration
 typedef enum {
@@ -80,7 +81,7 @@ struct simplet_dictionary {
  * @param key The string to hash (must not be NULL)
  * @return 32-bit hash value
  */
-static inline uint32_t hash_key(const char * restrict key) {
+static inline uint32_t hash_key(const char *key) {
     uint32_t hash = 2166136261U;  // FNV offset basis
 
     while (*key) {
@@ -150,7 +151,7 @@ static inline simplet_dictionary_t* create_simplet_dictionary(size_t initial_siz
  * @param new_bucket_count New number of buckets
  * @return Error code
  */
-static simplet_dictionary_error_t resize_simplet_dictionary(simplet_dictionary_t * restrict dict, size_t new_bucket_count) {
+static simplet_dictionary_error_t resize_simplet_dictionary(simplet_dictionary_t *dict, size_t new_bucket_count) {
     if (!dict) return ERROR_NULL_PARAM;
 
     new_bucket_count = next_prime(new_bucket_count);
@@ -188,9 +189,9 @@ static simplet_dictionary_error_t resize_simplet_dictionary(simplet_dictionary_t
  * @param value Value string (will be duplicated internally)
  * @return Error code
  */
-static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictionary_t * restrict dict,
-                                                      const char * restrict key,
-                                                      const char * restrict value) {
+static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictionary_t *dict,
+                                                      const char *key,
+                                                      const char *value) {
     if (!dict || !key || !value) return ERROR_NULL_PARAM;
 
     uint32_t hash = hash_key(key);
@@ -250,7 +251,7 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
  * @param key Key to look up
  * @return Value string or NULL if not found
  */
-static inline const char* simplet_dictionary_get(const simplet_dictionary_t * restrict dictionary, const char * restrict key) {
+static inline const char* simplet_dictionary_get(const simplet_dictionary_t *dictionary, const char *key) {
     if (!dictionary || !key) return NULL;
 
     uint32_t hash = hash_key(key);
@@ -273,7 +274,7 @@ static inline const char* simplet_dictionary_get(const simplet_dictionary_t * re
  * @param key Key to check
  * @return true if key exists, false otherwise
  */
-static inline bool simplet_dictionary_contains(const simplet_dictionary_t * restrict dictionary, const char * restrict key) {
+static inline bool simplet_dictionary_contains(const simplet_dictionary_t *dictionary, const char *key) {
     return simplet_dictionary_get(dictionary, key) != NULL;
 }
 
@@ -283,7 +284,7 @@ static inline bool simplet_dictionary_contains(const simplet_dictionary_t * rest
  * @param key Key to remove
  * @return Error code
  */
-static inline simplet_dictionary_error_t simplet_dictionary_remove(simplet_dictionary_t * restrict dictionary, const char * restrict key) {
+static inline simplet_dictionary_error_t simplet_dictionary_remove(simplet_dictionary_t *dictionary, const char *key) {
     if (!dictionary || !key) return ERROR_NULL_PARAM;
 
     uint32_t hash = hash_key(key);
@@ -325,7 +326,7 @@ static inline simplet_dictionary_error_t simplet_dictionary_remove(simplet_dicti
  * Clear all entries from the dictionary
  * @param dictionary Dictionary to clear
  */
-static inline void clear_simplet_dictionary(simplet_dictionary_t * restrict dictionary) {
+static inline void clear_simplet_dictionary(simplet_dictionary_t *dictionary) {
     if (!dictionary) return;
 
     for (size_t i = 0; i < dictionary->bucket_count; i++) {
@@ -360,7 +361,7 @@ static inline void destroy_simplet_dictionary(simplet_dictionary_t *dict) {
  * @param dictionary Dictionary to analyze
  * @return Load factor (entries/buckets ratio) or 0 on error
  */
-static inline float stunt_dict_load_factor(const simplet_dictionary_t * restrict dictionary) {
+static inline float stunt_dict_load_factor(const simplet_dictionary_t *dictionary) {
     if (!dictionary || dictionary->bucket_count == 0) return 0.0f;
     return (float)dictionary->entry_count / (float)dictionary->bucket_count;
 }
@@ -370,7 +371,7 @@ static inline float stunt_dict_load_factor(const simplet_dictionary_t * restrict
  * @param dictionary Dictionary to query
  * @return Number of entries or 0 if dict is NULL
  */
-static inline size_t simplet_dictionary_size(const simplet_dictionary_t * restrict dictionary) {
+static inline size_t simplet_dictionary_size(const simplet_dictionary_t *dictionary) {
     return dictionary ? dictionary->entry_count : 0;
 }
 
@@ -379,7 +380,7 @@ static inline size_t simplet_dictionary_size(const simplet_dictionary_t * restri
  * @param dictionary Dictionary to check
  * @return true if empty or NULL, false otherwise
  */
-static inline bool simplet_dictionary_is_empty(const simplet_dictionary_t * restrict dictionary) {
+static inline bool simplet_dictionary_is_empty(const simplet_dictionary_t *dictionary) {
     return !dictionary || dictionary->entry_count == 0;
 }
 
@@ -434,7 +435,7 @@ static inline bool simplet_dictionary_iterator_has_next(const stunt_dict_iterato
  * @param value Pointer to store value (optional)
  * @return true if entry retrieved, false if no more entries
  */
-static inline bool simplet_dictionary_iterator_next(stunt_dict_iterator_t * restrict iterator, const char ** restrict key, const char ** restrict value) {
+static inline bool simplet_dictionary_iterator_next(stunt_dict_iterator_t *iterator, const char **key, const char **value) {
     if (!iterator || !iterator->current_entry) return false;
 
     if (key) *key = iterator->current_entry->key;
@@ -468,7 +469,7 @@ typedef void (*simplet_dictionary_foreach_callback)(const char *key, const char 
  * @param callback Function to call for each entry
  * @param user_data User data to pass to callback
  */
-static inline void simplet_dictionary_foreach(const simplet_dictionary_t * restrict dictionary, simplet_dictionary_foreach_callback callback, void *user_data) {
+static inline void simplet_dictionary_foreach(const simplet_dictionary_t *dictionary, simplet_dictionary_foreach_callback callback, void *user_data) {
     if (!dictionary || !callback) return;
 
     for (size_t i = 0; i < dictionary->bucket_count; i++) {
@@ -498,7 +499,7 @@ typedef struct {
  * @param stats Structure to fill with statistics
  * @return Error code
  */
-static inline simplet_dictionary_error_t simplet_dictionary_get_stats(const simplet_dictionary_t * restrict dictionary, simplet_dictionary_stats_t * restrict stats) {
+static inline simplet_dictionary_error_t simplet_dictionary_get_stats(const simplet_dictionary_t *dictionary, simplet_dictionary_stats_t *stats) {
     if (!dictionary || !stats) return ERROR_NULL_PARAM;
 
     memset(stats, 0, sizeof(simplet_dictionary_stats_t));

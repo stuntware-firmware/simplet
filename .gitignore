@@ -2,7 +2,7 @@
 
 
 .idea/
-.claude/
+.agents/
 build/
 cmake-build-*/
 .DS_Store
