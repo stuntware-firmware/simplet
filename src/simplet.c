@@ -74,8 +74,8 @@ static inline size_t skip_trailing_whitespace(const char *str, size_t start, siz
  *   dictionary: key-value pairs for substitution
  * Returns: newly allocated string with substitutions, or NULL on error
  */
-char* simplet_render_html(const char * restrict html_template,
-                          const simplet_dictionary_t * restrict dictionary) {
+char* simplet_render_html(const char *html_template,
+                          const simplet_dictionary_t *dictionary) {
     // Input validation
     if (!html_template || !dictionary) {
         return NULL;
