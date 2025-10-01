@@ -15,6 +15,7 @@ void test_simplet_handles_multiple_placeholders(void);
 void test_simplet_handles_missing_placeholder_gracefully(void);
 void test_simplet_handles_empty_template(void);
 void test_simplet_handles_NULL_dictionary(void);
+void test_simplet_handles_empty_string_value(void);
 
 int main(void) {
     UNITY_BEGIN();
@@ -24,6 +25,7 @@ int main(void) {
     RUN_TEST(test_simplet_handles_missing_placeholder_gracefully);
     RUN_TEST(test_simplet_handles_empty_template);
     RUN_TEST(test_simplet_handles_NULL_dictionary);
+    RUN_TEST(test_simplet_handles_empty_string_value);
 
     return UNITY_END();
 }
