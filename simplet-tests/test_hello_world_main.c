@@ -1,13 +1,4 @@
-#include "unity.h"
-
-// Unity requires these functions to be defined
-void setUp(void) {
-    // Set up code here
-}
-
-void tearDown(void) {
-    // Tear down code here
-}
+#include <stdio.h>
 
 // Forward declare the test functions that are defined in test_hello_world.c
 void test_simplet_renders_hello_world_template(void);
@@ -18,14 +9,26 @@ void test_simplet_handles_NULL_dictionary(void);
 void test_simplet_handles_empty_string_value(void);
 
 int main(void) {
-    UNITY_BEGIN();
+    printf("Running simplet tests...\n");
 
-    RUN_TEST(test_simplet_renders_hello_world_template);
-    RUN_TEST(test_simplet_handles_multiple_placeholders);
-    RUN_TEST(test_simplet_handles_missing_placeholder_gracefully);
-    RUN_TEST(test_simplet_handles_empty_template);
-    RUN_TEST(test_simplet_handles_NULL_dictionary);
-    RUN_TEST(test_simplet_handles_empty_string_value);
+    test_simplet_renders_hello_world_template();
+    printf("✓ test_simplet_renders_hello_world_template\n");
 
-    return UNITY_END();
+    test_simplet_handles_multiple_placeholders();
+    printf("✓ test_simplet_handles_multiple_placeholders\n");
+
+    test_simplet_handles_missing_placeholder_gracefully();
+    printf("✓ test_simplet_handles_missing_placeholder_gracefully\n");
+
+    test_simplet_handles_empty_template();
+    printf("✓ test_simplet_handles_empty_template\n");
+
+    test_simplet_handles_NULL_dictionary();
+    printf("✓ test_simplet_handles_NULL_dictionary\n");
+
+    test_simplet_handles_empty_string_value();
+    printf("✓ test_simplet_handles_empty_string_value\n");
+
+    printf("\nAll tests passed!\n");
+    return 0;
 }

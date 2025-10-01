@@ -25,9 +25,25 @@
     _Static_assert(sizeof(void*) >= 4, "Pointer size must be at least 32 bits");
 #endif
 
+#define TERMINATOR 1
+
+/**
+ * Safely check if string is null-terminated within max_len bytes
+ * @param str String to check
+ * @param max_len Maximum bytes to check
+ * @return Length if null-terminated within bounds, SIZE_MAX otherwise
+ */
+static inline size_t safe_strlen(const char *str, size_t max_len) {
+    if (!str) return SIZE_MAX;
+    for (size_t i = 0; i < max_len; i++) {
+        if (str[i] == '\0') return i;
+    }
+    return SIZE_MAX; // Not null-terminated within bounds
+}
 
 // Maximum key size (including null terminator)
-#define MAX_KEY_SIZE 64
+#define MAX_KEY_SIZE 64 + TERMINATOR
+#define MAX_VALUE_SIZE 1024 + TERMINATOR
 
 // Error codes enumeration
 typedef enum {
@@ -201,9 +217,9 @@ static simplet_dictionary_error_t resize_simplet_dictionary(simplet_dictionary_t
 static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictionary_t *dict, const char *key, const char *value) {
     if (!dict || !key || !value) return ERROR_NULL_PARAM;
 
-    // Check key length
-    size_t key_len = strlen(key);
-    if (key_len >= MAX_KEY_SIZE) return ERROR_KEY_TOO_LONG;
+    // Check key length with bounds checking
+    size_t key_len = safe_strlen(key, MAX_KEY_SIZE);
+    if (key_len == SIZE_MAX || key_len >= MAX_KEY_SIZE) return ERROR_KEY_TOO_LONG;
 
     uint32_t hash = hash_key(key);
     size_t index = hash % dict->bucket_count;
@@ -212,13 +228,18 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
     entry_t *entry = dict->buckets[index];
     while (entry) {
         if (entry->hash == hash && strcmp(entry->key, key) == 0) {
-            // Update existing entry
+            // Update existing entry - validate value length first
+            size_t value_len = safe_strlen(value, MAX_VALUE_SIZE);
+            if (value_len == SIZE_MAX || value_len >= MAX_VALUE_SIZE) return ERROR_INVALID_SIZE;
+
             char *new_value = strdup(value);
             if (!new_value) return ERROR_NO_MEMORY;
 
             // Update allocated size tracking
-            size_t old_value_len = strlen(entry->value) + 1;
-            size_t new_value_len = strlen(new_value) + 1;
+            size_t old_value_len = safe_strlen(entry->value, MAX_VALUE_SIZE);
+            if (old_value_len == SIZE_MAX) old_value_len = 0;  // Defensive fallback
+            old_value_len += 1;
+            size_t new_value_len = value_len + 1;
             dict->total_allocated = dict->total_allocated - old_value_len + new_value_len;
 
             free(entry->value);
@@ -235,6 +256,10 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
         // Recalculate index after resize
         index = hash % dict->bucket_count;
     }
+
+    // Validate value length before creating entry
+    size_t value_len = safe_strlen(value, MAX_VALUE_SIZE);
+    if (value_len == SIZE_MAX || value_len >= MAX_VALUE_SIZE) return ERROR_INVALID_SIZE;
 
     // Create new entry
     entry_t *new_entry = malloc(sizeof(entry_t));
@@ -259,7 +284,8 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
     dict->entry_count++;
 
     // Track allocated memory (key + value strings including null terminators)
-    dict->total_allocated += strlen(key) + 1 + strlen(value) + 1;
+    // key_len already validated above, value_len just validated
+    dict->total_allocated += key_len + 1 + value_len + 1;
 
     return SUCCESS;
 }
@@ -320,8 +346,12 @@ static inline simplet_dictionary_error_t simplet_dictionary_remove(simplet_dicti
                 dictionary->buckets[index] = entry->next;
             }
 
-            // Update allocated size tracking
-            dictionary->total_allocated -= strlen(entry->key) + 1 + strlen(entry->value) + 1;
+            // Update allocated size tracking with safe string length checks
+            size_t key_len = safe_strlen(entry->key, MAX_KEY_SIZE);
+            size_t val_len = safe_strlen(entry->value, MAX_VALUE_SIZE);
+            if (key_len != SIZE_MAX && val_len != SIZE_MAX) {
+                dictionary->total_allocated -= (key_len + 1 + val_len + 1);
+            }
 
             free(entry->key);
             free(entry->value);
