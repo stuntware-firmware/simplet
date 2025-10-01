@@ -4,6 +4,6 @@
 
 #include "simplet_dictionary.h"
 
-char* simplet_render_html(const char *html_template, const simplet_dictionary_t *dictionary);
+char* simplet_render_html(const char *html_template, simplet_dictionary_t *dictionary);
 
 #endif

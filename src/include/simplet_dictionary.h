@@ -26,6 +26,9 @@
 #endif
 
 
+// Maximum key size (including null terminator)
+#define MAX_KEY_SIZE 64
+
 // Error codes enumeration
 typedef enum {
     SUCCESS = 0,
@@ -34,7 +37,8 @@ typedef enum {
     ERROR_KEY_EXISTS = -3,
     ERROR_KEY_NOT_FOUND = -4,
     ERROR_INVALID_SIZE = -5,
-    ERROR_RESIZE_FAILED = -6
+    ERROR_RESIZE_FAILED = -6,
+    ERROR_KEY_TOO_LONG = -7
 } simplet_dictionary_error_t;
 
 // Predefined dictionary sizes (must be prime numbers for better hash distribution)
@@ -49,6 +53,9 @@ typedef enum {
 // Load factor thresholds
 #define LOAD_FACTOR_MAX 0.75f
 #define LOAD_FACTOR_MIN 0.25f
+
+// Helper macro for creating empty dictionaries
+#define EMPTY_DICTIONARY() create_simplet_dictionary(SIZE_TINY, false)
 
 // Forward declarations
 typedef struct entry entry_t;
@@ -68,6 +75,7 @@ struct simplet_dictionary {
     size_t bucket_count;        // Number of buckets
     size_t entry_count;         // Number of entries
     size_t resize_threshold;    // Threshold for automatic resize
+    size_t total_allocated;     // Total bytes allocated for keys and values
     bool auto_resize;           // Enable automatic resizing
 };
 
@@ -139,6 +147,7 @@ static inline simplet_dictionary_t* create_simplet_dictionary(size_t initial_siz
 
     dict->bucket_count = initial_size;
     dict->entry_count = 0;
+    dict->total_allocated = 0;
     dict->auto_resize = auto_resize;
     dict->resize_threshold = (size_t)(initial_size * LOAD_FACTOR_MAX);
 
@@ -189,10 +198,12 @@ static simplet_dictionary_error_t resize_simplet_dictionary(simplet_dictionary_t
  * @param value Value string (will be duplicated internally)
  * @return Error code
  */
-static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictionary_t *dict,
-                                                      const char *key,
-                                                      const char *value) {
+static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictionary_t *dict, const char *key, const char *value) {
     if (!dict || !key || !value) return ERROR_NULL_PARAM;
+
+    // Check key length
+    size_t key_len = strlen(key);
+    if (key_len >= MAX_KEY_SIZE) return ERROR_KEY_TOO_LONG;
 
     uint32_t hash = hash_key(key);
     size_t index = hash % dict->bucket_count;
@@ -204,6 +215,11 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
             // Update existing entry
             char *new_value = strdup(value);
             if (!new_value) return ERROR_NO_MEMORY;
+
+            // Update allocated size tracking
+            size_t old_value_len = strlen(entry->value) + 1;
+            size_t new_value_len = strlen(new_value) + 1;
+            dict->total_allocated = dict->total_allocated - old_value_len + new_value_len;
 
             free(entry->value);
             entry->value = new_value;
@@ -241,6 +257,9 @@ static inline simplet_dictionary_error_t simplet_dictionary_set(simplet_dictiona
     new_entry->next = dict->buckets[index];
     dict->buckets[index] = new_entry;
     dict->entry_count++;
+
+    // Track allocated memory (key + value strings including null terminators)
+    dict->total_allocated += strlen(key) + 1 + strlen(value) + 1;
 
     return SUCCESS;
 }
@@ -301,6 +320,9 @@ static inline simplet_dictionary_error_t simplet_dictionary_remove(simplet_dicti
                 dictionary->buckets[index] = entry->next;
             }
 
+            // Update allocated size tracking
+            dictionary->total_allocated -= strlen(entry->key) + 1 + strlen(entry->value) + 1;
+
             free(entry->key);
             free(entry->value);
             free(entry);
@@ -342,6 +364,7 @@ static inline void clear_simplet_dictionary(simplet_dictionary_t *dictionary) {
     }
 
     dictionary->entry_count = 0;
+    dictionary->total_allocated = 0;
 }
 
 /**
@@ -371,8 +394,17 @@ static inline float stunt_dict_load_factor(const simplet_dictionary_t *dictionar
  * @param dictionary Dictionary to query
  * @return Number of entries or 0 if dict is NULL
  */
-static inline size_t simplet_dictionary_size(const simplet_dictionary_t *dictionary) {
+static inline size_t simplet_dictionary_count(const simplet_dictionary_t *dictionary) {
     return dictionary ? dictionary->entry_count : 0;
+}
+
+/**
+ * Get total allocated memory for keys and values
+ * @param dictionary Dictionary to query
+ * @return Total bytes allocated for all keys and values or 0 if dict is NULL
+ */
+static inline size_t simplet_dictionary_allocated_size(const simplet_dictionary_t *dictionary) {
+    return dictionary ? dictionary->total_allocated : 0;
 }
 
 /**
@@ -383,160 +415,6 @@ static inline size_t simplet_dictionary_size(const simplet_dictionary_t *diction
 static inline bool simplet_dictionary_is_empty(const simplet_dictionary_t *dictionary) {
     return !dictionary || dictionary->entry_count == 0;
 }
-
-/**
- * Iterator structure for traversing dictionary entries
- */
-typedef struct {
-    const simplet_dictionary_t *dict;
-    size_t bucket_index;
-    const entry_t *current_entry;
-} stunt_dict_iterator_t;
-
-/**
- * Initialize an iterator for dictionary traversal
- * @param dictionary Dictionary to iterate
- * @return Initialized iterator
- */
-static inline stunt_dict_iterator_t simplet_dictionary_iterator_init(const simplet_dictionary_t *dictionary) {
-    stunt_dict_iterator_t iter = {
-        .dict = dictionary,
-        .bucket_index = 0,
-        .current_entry = NULL
-    };
-
-    // Find first non-empty bucket
-    if (dictionary) {
-        for (size_t i = 0; i < dictionary->bucket_count; i++) {
-            if (dictionary->buckets[i]) {
-                iter.bucket_index = i;
-                iter.current_entry = dictionary->buckets[i];
-                break;
-            }
-        }
-    }
-
-    return iter;
-}
-
-/**
- * Check if iterator has more entries
- * @param iterator Iterator to check
- * @return true if more entries available
- */
-static inline bool simplet_dictionary_iterator_has_next(const stunt_dict_iterator_t *iterator) {
-    return iterator && iterator->current_entry != NULL;
-}
-
-/**
- * Get next entry from iterator
- * @param iterator Iterator to advance
- * @param key Pointer to store key (optional)
- * @param value Pointer to store value (optional)
- * @return true if entry retrieved, false if no more entries
- */
-static inline bool simplet_dictionary_iterator_next(stunt_dict_iterator_t *iterator, const char **key, const char **value) {
-    if (!iterator || !iterator->current_entry) return false;
-
-    if (key) *key = iterator->current_entry->key;
-    if (value) *value = iterator->current_entry->value;
-
-    // Move to next entry
-    iterator->current_entry = iterator->current_entry->next;
-
-    // If no more entries in current bucket, find next non-empty bucket
-    if (!iterator->current_entry && iterator->dict) {
-        for (size_t i = iterator->bucket_index + 1; i < iterator->dict->bucket_count; i++) {
-            if (iterator->dict->buckets[i]) {
-                iterator->bucket_index = i;
-                iterator->current_entry = iterator->dict->buckets[i];
-                break;
-            }
-        }
-    }
-
-    return true;
-}
-
-/**
- * Callback function type for dictionary traversal
- */
-typedef void (*simplet_dictionary_foreach_callback)(const char *key, const char *value, void *user_data);
-
-/**
- * Apply a function to each entry in the dictionary
- * @param dictionary Dictionary to traverse
- * @param callback Function to call for each entry
- * @param user_data User data to pass to callback
- */
-static inline void simplet_dictionary_foreach(const simplet_dictionary_t *dictionary, simplet_dictionary_foreach_callback callback, void *user_data) {
-    if (!dictionary || !callback) return;
-
-    for (size_t i = 0; i < dictionary->bucket_count; i++) {
-        const entry_t *entry = dictionary->buckets[i];
-        while (entry) {
-            callback(entry->key, entry->value, user_data);
-            entry = entry->next;
-        }
-    }
-}
-
-/**
- * Get dictionary statistics
- */
-typedef struct {
-    size_t bucket_count;        // Total number of buckets
-    size_t entry_count;         // Total number of entries
-    size_t empty_buckets;       // Number of empty buckets
-    size_t max_chain_length;    // Maximum chain length in any bucket
-    float load_factor;          // Current load factor
-    float avg_chain_length;     // Average chain length (non-empty buckets)
-} simplet_dictionary_stats_t;
-
-/**
- * Collect statistics about dictionary performance
- * @param dictionary Dictionary to analyze
- * @param stats Structure to fill with statistics
- * @return Error code
- */
-static inline simplet_dictionary_error_t simplet_dictionary_get_stats(const simplet_dictionary_t *dictionary, simplet_dictionary_stats_t *stats) {
-    if (!dictionary || !stats) return ERROR_NULL_PARAM;
-
-    memset(stats, 0, sizeof(simplet_dictionary_stats_t));
-    stats->bucket_count = dictionary->bucket_count;
-    stats->entry_count = dictionary->entry_count;
-    stats->load_factor = stunt_dict_load_factor(dictionary);
-
-    size_t non_empty_buckets = 0;
-    size_t total_chain_length = 0;
-
-    for (size_t i = 0; i < dictionary->bucket_count; i++) {
-        size_t chain_length = 0;
-        const entry_t *entry = dictionary->buckets[i];
-
-        if (!entry) {
-            stats->empty_buckets++;
-        } else {
-            non_empty_buckets++;
-            while (entry) {
-                chain_length++;
-                entry = entry->next;
-            }
-            total_chain_length += chain_length;
-            if (chain_length > stats->max_chain_length) {
-                stats->max_chain_length = chain_length;
-            }
-        }
-    }
-
-    if (non_empty_buckets > 0) {
-        stats->avg_chain_length = (float)total_chain_length / (float)non_empty_buckets;
-    }
-
-    return SUCCESS;
-}
-
-// Backward compatibility aliases (deprecated)
 
 
 #endif // SIMPLET_DICTIONARY_H

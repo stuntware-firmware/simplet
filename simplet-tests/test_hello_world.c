@@ -22,7 +22,7 @@ TEST_CASE(simplet_renders_hello_world_template, "[simplet]") {
     simplet_dictionary_error_t result = simplet_dictionary_set(dict, "hello-world", "Hello, World!");
     TEST_ASSERT_EQUAL_INT_MESSAGE(SUCCESS, result, "Failed to add key-value pair to dictionary");
 
-    char* rendered_html = simplet_render_html((char*)template_html, dict);
+    char* rendered_html = simplet_render_html(template_html, dict);
     TEST_ASSERT_NOT_NULL_MESSAGE(rendered_html, "Failed to render HTML");
 
     TEST_ASSERT_EQUAL_STRING(expected_output, rendered_html);
@@ -58,8 +58,8 @@ TEST_CASE(simplet_handles_missing_placeholder_gracefully, "[simplet]") {
     char* rendered_html = simplet_render_html((char*)template_html, dict);
     TEST_ASSERT_NOT_NULL(rendered_html);
 
-    // When placeholder not found, it should remain as-is
-    TEST_ASSERT_EQUAL_STRING("<div>{{ missing }}</div>", rendered_html);
+    // When placeholder not found, render nothing (not even the key)
+    TEST_ASSERT_EQUAL_STRING("<div></div>", rendered_html);
 
     destroy_simplet_dictionary(dict);
     free(rendered_html);
@@ -88,4 +88,22 @@ TEST_CASE(simplet_handles_NULL_dictionary, "[simplet]") {
         TEST_ASSERT_EQUAL_STRING("<div>Test</div>", rendered_html);
         free(rendered_html);
     }
+}
+
+TEST_CASE(simplet_handles_empty_string_value, "[simplet]") {
+    const char* template_html = "<div>{{ empty }}</div>";
+
+    simplet_dictionary_t* dict = create_simplet_dictionary(SIZE_SMALL, false);
+    TEST_ASSERT_NOT_NULL(dict);
+
+    TEST_ASSERT_EQUAL_INT(SUCCESS, simplet_dictionary_set(dict, "empty", ""));
+
+    char* rendered_html = simplet_render_html((char*)template_html, dict);
+    TEST_ASSERT_NOT_NULL(rendered_html);
+
+    // When value is empty string, render nothing (not even the key)
+    TEST_ASSERT_EQUAL_STRING("<div></div>", rendered_html);
+
+    destroy_simplet_dictionary(dict);
+    free(rendered_html);
 }
